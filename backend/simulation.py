@@ -145,6 +145,10 @@ def simulate_scenario(selections: list[dict]) -> dict:
         "critical_indicators_after": None,
         "applied_synergies": [],
         "selected_measures": deepcopy(selections),
+        "district_score_deltas": None,
+        "indicator_deltas": None,
+        "measure_contributions": [],
+        "clipping_adjustments": None,
     }
     if not validation["valid"]:
         return result
@@ -160,13 +164,23 @@ def simulate_scenario(selections: list[dict]) -> dict:
             if measure["type"] == "district"
             else DISTRICTS
         )
+        contribution = {
+            "measure_id": measure_id,
+            "cost": measure["cost"],
+            "lag": measure["lag"],
+            "realized_fraction": (SIMULATION_HORIZON - measure["lag"]) / SIMULATION_HORIZON,
+            "indicator_effects_before_clip": {},
+        }
         for district in targets:
+            contribution["indicator_effects_before_clip"][district] = {}
             for key, full_effect in measure["effects"].items():
                 realized_effect = (
                     full_effect * (SIMULATION_HORIZON - measure["lag"])
                     / SIMULATION_HORIZON
                 )
                 indicators[district][key] += realized_effect
+                contribution["indicator_effects_before_clip"][district][key] = realized_effect
+        result["measure_contributions"].append(contribution)
 
     for synergy in SYNERGIES:
         if all(measure_id in selected for measure_id in synergy["measures"]):
@@ -179,9 +193,14 @@ def simulate_scenario(selections: list[dict]) -> dict:
                 "effects": synergy["effects"].copy(),
             })
 
-    for values in indicators.values():
+    # Contributions are lag-adjusted additive effects, not shares of final Score.
+    # Synergies stay separate; clipping is applied only to the combined result.
+    clipping_adjustments = {}
+    for district, values in indicators.items():
+        clipping_adjustments[district] = {}
         for key, value in values.items():
             values[key] = max(0, min(100, value))
+            clipping_adjustments[district][key] = values[key] - value
 
     final = _score(indicators)
     result.update({
@@ -190,5 +209,15 @@ def simulate_scenario(selections: list[dict]) -> dict:
         "district_scores_after": final["district_scores"],
         "indicators_after": indicators,
         "critical_indicators_after": final["critical_indicators"],
+        "district_score_deltas": {
+            district: score - baseline["district_scores"][district]
+            for district, score in final["district_scores"].items()
+        },
+        "indicator_deltas": {
+            district: {key: value - baseline["indicators"][district][key]
+                       for key, value in values.items()}
+            for district, values in indicators.items()
+        },
+        "clipping_adjustments": clipping_adjustments,
     })
     return result
