@@ -106,7 +106,48 @@ class SimulationTests(unittest.TestCase):
             "final_score", "score_delta", "district_scores_before", "district_scores_after",
             "indicators_before", "indicators_after", "critical_indicators_before",
             "critical_indicators_after", "applied_synergies", "selected_measures",
+            "district_score_deltas", "indicator_deltas", "measure_contributions",
+            "clipping_adjustments",
         })
+
+    def test_explanation_values_are_calculated_by_engine(self):
+        result = simulation.simulate_scenario(demo())
+        contributions = {c["measure_id"]: c for c in result["measure_contributions"]}
+        self.assertEqual(list(contributions), ["M2", "M7", "M8", "M10", "M12"])
+        self.assertEqual(contributions["M7"], {
+            "measure_id": "M7", "cost": 24, "lag": 3, "realized_fraction": 0.625,
+            "indicator_effects_before_clip": {"Nura": {"S1": 10}},
+        })
+        self.assertEqual(contributions["M2"]["indicator_effects_before_clip"], {
+            d: {"T1": 3, "B2": 2.25} for d in data.DISTRICTS
+        })
+        self.assertEqual(contributions["M10"]["indicator_effects_before_clip"], {
+            "Baikonur": {"B1": 10.5, "B2": 1.75}
+        })  # The separate +2 synergy must not be counted twice.
+        self.assertEqual(result["indicator_deltas"]["Baikonur"]["B1"], 12.5)
+        self.assertEqual(result["indicator_deltas"]["Nura"]["S2"], 8.75)
+        self.assertAlmostEqual(result["district_score_deltas"]["Nura"], 3.0025)
+        self.assertTrue(all(v == 0 for d in result["clipping_adjustments"].values()
+                            for v in d.values()))
+        contributions["M7"]["indicator_effects_before_clip"]["Nura"]["S1"] = 999
+        self.assertEqual(result["indicator_deltas"]["Nura"]["S1"], 10)
+        self.assertEqual(data.MEASURES["M7"]["effects"]["S1"], 16)
+
+    def test_official_reference_scenario(self):
+        result = simulation.simulate_scenario(plan(
+            ("M7", "Nura"), ("M8", "Nura"), ("M10", "Nura"),
+            "M12", ("M5", "Saryarka")))
+        self.assertTrue(result["valid"], result["errors"])
+        self.assertEqual(result["total_cost"], 95)
+        self.assertAlmostEqual(result["final_score"], 56.54307)
+
+    def test_cheapest_reference_scenario(self):
+        result = simulation.simulate_scenario(plan(
+            ("M9", "Nura"), ("M11", "Nura"), ("M10", "Nura"),
+            "M12", ("M4", "Nura")))
+        self.assertTrue(result["valid"], result["errors"])
+        self.assertEqual(result["total_cost"], 61)
+        self.assertAlmostEqual(result["final_score"], 55.667385)
 
     def test_wrong_decision_count(self):
         for selections in [[], demo()[:4], demo() + [{"measure_id": "M14"}]]:
@@ -254,13 +295,20 @@ class SimulationTests(unittest.TestCase):
         self.assertEqual(result["indicators_after"]["Nura"]["T1"], 0)
         self.assertEqual(result["indicators_after"]["Nura"]["B2"], 100)
         self.assertEqual(result["indicators_before"]["Nura"]["T1"], 1)
+        self.assertEqual(result["indicator_deltas"]["Nura"]["T1"], -1)
+        self.assertEqual(result["clipping_adjustments"]["Nura"]["T1"], 0.75)
+        self.assertEqual(result["clipping_adjustments"]["Nura"]["B2"], -9.5)
+        m11 = result["measure_contributions"][2]
+        self.assertEqual(m11["measure_id"], "M11")
+        self.assertEqual(m11["indicator_effects_before_clip"]["Nura"]["T1"], -1.75)
 
     def test_invalid_result_preserves_contract(self):
         result = simulation.simulate_scenario([])
         self.assertFalse(result["valid"])
         self.assertAlmostEqual(result["baseline_score"], 52.55768)
         for field in ["final_score", "score_delta", "district_scores_after",
-                      "indicators_after", "critical_indicators_after"]:
+                      "indicators_after", "critical_indicators_after", "district_score_deltas",
+                      "indicator_deltas", "clipping_adjustments"]:
             self.assertIsNone(result[field])
         self.assertEqual(result["applied_synergies"], [])
         self.assertEqual(result["selected_measures"], [])
