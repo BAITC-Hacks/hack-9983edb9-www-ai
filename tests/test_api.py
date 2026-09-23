@@ -14,6 +14,8 @@ from openai import APIConnectionError, APITimeoutError
 
 from backend import ai_service
 from backend.main import app
+from backend.explanations import evidence_catalog, render_selection
+from backend.simulation import simulate_scenario
 
 
 REFERENCE_SELECTIONS = [
@@ -23,14 +25,12 @@ REFERENCE_SELECTIONS = [
     {"measure_id": "M12", "district": None},
     {"measure_id": "M5", "district": "Saryarka"},
 ]
-ANALYSIS = {
-    "summary": "The simulated strategy improves Nura's services and safety.",
-    "strengths": ["Targets the initially weakest district."],
-    "risks": ["Some indicators remain unchanged."],
-    "tradeoffs": ["District investments concentrate on selected areas."],
-    "consequences": ["The simulated critical indicators are resolved."],
-    "recommendations": ["Test another allocation using the simulation engine."],
+SELECTION = {
+    "summary": "score", "strengths": ["gain_Nura"], "risks": ["model"],
+    "tradeoffs": ["budget"], "consequences": ["resolved_Nura_S1", "resolved_Nura_S2"],
+    "recommendations": ["compare"],
 }
+ANALYSIS = render_selection(SELECTION, evidence_catalog(simulate_scenario(REFERENCE_SELECTIONS)))
 TEST_KEY = "unit-test-placeholder-not-a-real-key"
 
 
@@ -55,7 +55,7 @@ class APITests(unittest.TestCase):
     def enable_mock_ai(self):
         os.environ["OPENAI_API_KEY"] = TEST_KEY
         self.sdk.responses.parse.return_value = SimpleNamespace(
-            status="completed", output_parsed=ai_service.PolicyAnalysis(**ANALYSIS)
+            status="completed", output_parsed=ai_service.EvidenceSelection(**SELECTION)
         )
 
     def test_health(self):
@@ -135,7 +135,7 @@ class APITests(unittest.TestCase):
         self.assertEqual(payload["simulation_result"]["indicator_deltas"]["Nura"]["S1"], 10)
         self.assertEqual(len(payload["simulation_result"]["measure_contributions"]), 5)
         self.assertNotIn(TEST_KEY, json.dumps(payload))
-        self.assertIs(arguments["text_format"], ai_service.PolicyAnalysis)
+        self.assertIs(arguments["text_format"], ai_service.EvidenceSelection)
         self.assertFalse(arguments["store"])
         self.assertIn("Never calculate, recalculate", arguments["instructions"])
         self.assertEqual(result, original)
