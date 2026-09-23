@@ -3,7 +3,7 @@
 import json
 import os
 
-from openai import OpenAI, OpenAIError
+from openai import APITimeoutError, OpenAI, OpenAIError
 from pydantic import BaseModel, ConfigDict, Field
 
 from .data import INDICATOR_METADATA, MEASURES
@@ -119,6 +119,8 @@ def analyze_simulation(simulation_result: dict) -> dict:
         if response.status != "completed" or response.output_parsed is None:
             return _error("invalid_ai_response", "AI analysis was refused or incomplete. Please try again.")
         return response.output_parsed.model_dump()
+    except APITimeoutError:
+        return _error("openai_timeout", "AI analysis timed out. Please try again.")
     except OpenAIError:
         # Never expose exception messages: they can contain request details.
         return _error("openai_request_failed", "AI analysis is temporarily unavailable. Please try again.")
