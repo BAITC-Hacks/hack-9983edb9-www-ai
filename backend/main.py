@@ -4,7 +4,8 @@ from pydantic import BaseModel
 
 from .ai_service import analyze_simulation
 from .comparison import compare_scenarios
-from .data import BUDGET, DISTRICTS, INDICATOR_METADATA, MEASURES, REQUIRED_DECISIONS
+from .data import BUDGET, DISTRICTS, INDICATOR_METADATA, MEASURES, REQUIRED_DECISIONS, INCOMPATIBILITIES
+from .localization import UI_LABELS
 from .simulation import calculate_baseline, simulate_scenario
 
 app = FastAPI(title="QalaAI — Akim for 5 Hours")
@@ -41,6 +42,8 @@ def initial_state() -> dict:
         "districts": DISTRICTS,
         "measures": MEASURES,
         "indicator_metadata": INDICATOR_METADATA,
+        "ui_labels": UI_LABELS,
+        "rules": {"max_per_category": 2, "incompatibilities": INCOMPATIBILITIES},
     }
 
 

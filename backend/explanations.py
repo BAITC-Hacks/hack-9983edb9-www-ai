@@ -1,5 +1,6 @@
 """Verified explanation candidates. The LLM selects relevance, never writes facts."""
 
+from .localization import DISTRICT_LABELS, INDICATOR_LABELS
 
 def evidence_catalog(result: dict) -> dict:
     """Build statements exclusively from a canonical engine result.
@@ -8,34 +9,34 @@ def evidence_catalog(result: dict) -> dict:
     Consequences describe the synthetic model, not real-world forecasts.
     """
     catalog = {
-        "summary": {"score": f"Model Score: {result['baseline_score']:.5f} → {result['final_score']:.5f}. Cost: {result['total_cost']} of 100; remaining: {result['remaining_budget']}."},
+        "summary": {"score": f"Балл модели: {result['baseline_score']:.5f} → {result['final_score']:.5f}. Стоимость: {result['total_cost']} из 100; остаток: {result['remaining_budget']}."},
         "strengths": {},
-        "risks": {"model": "These synthetic results are not a forecast of actual Astana outcomes; resident satisfaction and construction uncertainty are not modeled."},
-        "tradeoffs": {"budget": f"The plan spends {result['total_cost']} of 100. Unspent budget gives no Score bonus; each chosen measure uses one of five decision slots."},
+        "risks": {"model": "Данные условные: результат не является прогнозом для реальной Астаны. Удовлетворённость жителей и неопределённость строительства не моделируются."},
+        "tradeoffs": {"budget": f"План расходует {result['total_cost']} из 100. Остаток бюджета не даёт бонуса; каждое мероприятие занимает одно из пяти решений."},
         "consequences": {},
-        "recommendations": {"compare": "Calculate another valid five-decision allocation and compare both Score and district outcomes before choosing a plan."},
+        "recommendations": {"compare": "Рассчитайте другой допустимый план из пяти решений и сравните общий балл и результаты районов перед выбором."},
     }
     before = {(x['district'], x['indicator']): x for x in result['critical_indicators_before']}
     after = {(x['district'], x['indicator']): x for x in result['critical_indicators_after']}
     for district, delta in result['district_score_deltas'].items():
         if delta > 0:
-            catalog['strengths'][f"gain_{district}"] = f"{district}'s district score increases by {delta:.5f} in the model."
+            catalog['strengths'][f"gain_{district}"] = f"{DISTRICT_LABELS[district]}: районный балл в модели вырос на {delta:.5f}."
         unchanged = [key for key, value in result['indicator_deltas'][district].items() if value == 0]
         if unchanged:
-            catalog['risks'][f"unchanged_{district}"] = f"{district}: {', '.join(unchanged)} receive no net improvement in this plan. Unchanged does not necessarily mean critical."
+            catalog['risks'][f"unchanged_{district}"] = f"{DISTRICT_LABELS[district]}: без изменений остались {', '.join(INDICATOR_LABELS[key] for key in unchanged)}. Это не означает, что они критические."
     for (district, indicator), item in before.items():
         if (district, indicator) not in after:
-            catalog['consequences'][f"resolved_{district}_{indicator}"] = f"{district} {indicator} rises from {item['value']:g} to {result['indicators_after'][district][indicator]:g}, removing its below-40 penalty."
+            catalog['consequences'][f"resolved_{district}_{indicator}"] = f"{DISTRICT_LABELS[district]} — {INDICATOR_LABELS[indicator]} ({indicator}): {item['value']:g} → {result['indicators_after'][district][indicator]:g}. Штраф за значение ниже 40 устранён."
     for (district, indicator), item in after.items():
-        catalog['risks'][f"critical_{district}_{indicator}"] = f"{district} {indicator} is {item['value']:g}, strictly below 40, so it incurs one Score penalty point."
-        catalog['recommendations'][f"review_{district}_{indicator}"] = f"Test an alternative targeting {district} {indicator}; validate its budget and effects with the engine before recommending it."
-    catalog['consequences']['critical_count'] = f"Critical district–indicator pairs: {len(before)} before, {len(after)} after. Each value strictly below 40 costs one Score point."
+        catalog['risks'][f"critical_{district}_{indicator}"] = f"{DISTRICT_LABELS[district]} — {INDICATOR_LABELS[indicator]} ({indicator}): {item['value']:g}, строго ниже 40. Это даёт штраф в один балл."
+        catalog['recommendations'][f"review_{district}_{indicator}"] = f"Проверьте другой план для показателя «{INDICATOR_LABELS[indicator]}» в районе {DISTRICT_LABELS[district]}. Перед выбором рассчитайте бюджет и эффекты."
+    catalog['consequences']['critical_count'] = f"Критических показателей по районам: было {len(before)}, стало {len(after)}. Каждое значение строго ниже 40 уменьшает итог на один балл."
     for index, synergy in enumerate(result['applied_synergies']):
         effects = ', '.join(f"{key} {value:+g}" for key, value in synergy['effects'].items())
-        catalog['strengths'][f"synergy_{index}"] = f"{' + '.join(synergy['measures'])} activates {effects} in {synergy['district']}; this fixed bonus is not reduced by lag."
+        catalog['strengths'][f"synergy_{index}"] = f"{' + '.join(synergy['measures'])}: совместный бонус {effects}, район {DISTRICT_LABELS[synergy['district']]}. Бонус фиксированный, задержка его не уменьшает."
     for item in result['measure_contributions']:
-        effects = '; '.join(f"{district}: " + ', '.join(f"{key} {value:+g}" for key, value in changes.items()) for district, changes in item['indicator_effects_before_clip'].items())
-        catalog['tradeoffs'][item['measure_id']] = f"{item['measure_id']} costs {item['cost']} and starts after {item['lag']} quarters. Its lag-adjusted effects before clipping and synergies are {effects}. These are not additive shares of final Score."
+        effects = '; '.join(f"{DISTRICT_LABELS[district]}: " + ', '.join(f"{key} {value:+g}" for key, value in changes.items()) for district, changes in item['indicator_effects_before_clip'].items())
+        catalog['tradeoffs'][item['measure_id']] = f"{item['measure_id']}: стоимость {item['cost']}, задержка в кварталах — {item['lag']}. Эффекты с учётом задержки, до ограничения 0–100 и совместных бонусов: {effects}. Это изменения показателей, а не отдельные доли итогового балла."
     return catalog
 
 
