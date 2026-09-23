@@ -1,6 +1,7 @@
 const API_URL = "http://127.0.0.1:8000/api";
 const $ = (id) => document.getElementById(id);
 const state = { initial: null, selections: [], busy: false };
+let analysisVersion = 0;
 const format = (value) => value.toFixed(2);
 const signed = (value) => `${value > 0 ? "+" : ""}${format(value)}`;
 const direction = (value) => value > 0 ? "positive" : value < 0 ? "negative" : "neutral";
@@ -12,14 +13,14 @@ function element(tag, text, className) {
     return node;
 }
 
-async function api(path, payload) {
+async function api(path, payload, timeout = 15000) {
     const response = await fetch(`${API_URL}${path}`, {
         ...(payload === undefined ? {} : {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
         }),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(timeout),
     });
     const data = await response.json();
     if (!response.ok) {
@@ -118,6 +119,7 @@ function addMeasure(id) {
 }
 
 function planChanged() {
+    analysisVersion += 1;
     $("results").hidden = true;
     feedback();
     renderPlan();
@@ -196,16 +198,62 @@ function renderResults(result) {
     $("results").scrollIntoView({ block: "start" });
 }
 
+async function requestAnalysis(result) {
+    const version = ++analysisVersion;
+    $("ai-content").replaceChildren();
+    $("ai-status").hidden = false;
+    $("ai-status").textContent = "AI is analyzing your strategy...";
+    $("ai-analysis").setAttribute("aria-busy", "true");
+    try {
+        // Send the exact engine response, without rebuilding or altering values.
+        const analysis = await api("/analyze", { simulation_result: result }, 40000);
+        if (version !== analysisVersion) return;
+        const sections = [
+            ["strengths", "Strengths"], ["risks", "Risks"],
+            ["tradeoffs", "Trade-offs"], ["consequences", "Possible consequences"],
+            ["recommendations", "Recommendations"],
+        ];
+        if (!analysis || analysis.error || typeof analysis.summary !== "string"
+            || !sections.every(([key]) => Array.isArray(analysis[key])
+                && analysis[key].every((item) => typeof item === "string"))) {
+            throw new Error("Analysis unavailable");
+        }
+        const summary = element("section", undefined, "ai-summary");
+        summary.append(element("h3", "Summary"), element("p", analysis.summary));
+        $("ai-content").append(summary);
+        sections.forEach(([key, title]) => {
+            const section = element("section");
+            section.append(element("h3", title));
+            const list = element("ul");
+            analysis[key].forEach((item) => list.append(element("li", item)));
+            section.append(list);
+            $("ai-content").append(section);
+        });
+        $("ai-status").hidden = true;
+    } catch {
+        if (version !== analysisVersion) return;
+        $("ai-content").replaceChildren();
+        $("ai-status").textContent = "AI analysis is temporarily unavailable.";
+    } finally {
+        if (version === analysisVersion) $("ai-analysis").setAttribute("aria-busy", "false");
+    }
+}
+
 async function simulate() {
     if (state.busy || state.selections.length !== state.initial.required_decisions) return;
     state.busy = true;
+    analysisVersion += 1;
     feedback();
     $("results").hidden = true;
     renderPlan();
     try {
         const result = await api("/simulate", { selections: state.selections });
         if (!result.valid) feedback(result.errors);
-        else renderResults(result);
+        else {
+            renderResults(result);
+            // Do not block plan controls or official results while AI responds.
+            void requestAnalysis(result);
+        }
     } catch (error) {
         feedback([`Simulation failed. Check the backend connection and retry. ${error.message}`]);
     } finally {

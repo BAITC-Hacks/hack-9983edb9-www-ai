@@ -1,2 +1,6 @@
 fastapi
 uvicorn
+openai
+pydantic>=2
+# Required by FastAPI TestClient for the automated API tests.
+httpx
