@@ -235,8 +235,8 @@ fields, preserving the frontend contract. Malformed request bodies use HTTP
 AI error codes include `missing_api_key`, `invalid_simulation`,
 `openai_request_failed`, `openai_timeout`, `invalid_ai_response`, and
 `analysis_unavailable`. OpenAI requests have a 30-second SDK timeout and no
-SDK retries. The analysis endpoint explains the supplied result; it does not
-recalculate or independently verify its numerical authenticity.
+SDK retries. The analysis endpoint verifies every submitted numerical field against a fresh
+engine calculation from the selected measures, rejecting altered results.
 
 ### Official reference scenario
 
@@ -267,3 +267,84 @@ Expected: `valid=true`, `baseline_score` approximately **52.55768**,
 No running server or API key is needed. API tests use FastAPI TestClient
 (`httpx`) and the standard-library `unittest` runner. All external OpenAI calls
 are mocked, including success, request failure, and timeout cases.
+
+
+### Verified AI explanations and comparison
+
+AI uses `gpt-4o-mini` to select and prioritize relevant evidence for strengths,
+risks, trade-offs, consequences and recommendations. The engine supplies the
+full result, district/indicator deltas and measure contributions. Python builds
+a catalog of verified statements from that result; the model returns evidence
+IDs and the server renders their text. Unknown IDs, wrong sections, duplicate
+IDs and incomplete responses are rejected. This deliberately constrains prose:
+AI chooses relevance but cannot invent numerical claims or critical indicators.
+Numbers displayed in these sentences are formatted to five decimal places;
+underlying engine results retain full precision. Missing keys or AI failures
+show unavailable status, never a template silently presented as an AI response.
+
+To compare strategies, simulate a valid plan, click **Save this result as Plan A**,
+change the decisions, and simulate again. The comparison shows cost, Score and
+all district scores for A and B. The saved plan exists only in the current tab
+and disappears on reload; no database or authentication is involved.
+`POST /api/compare` accepts `selections_a` and `selections_b` lists and recalculates
+both using identical official data. Invalid plans return `valid=false`, reasons
+under `errors.a`/`errors.b`, and `comparison=null`. A valid comparison includes
+`score_difference` (B minus A), costs and per-district differences. Comparison
+is deterministic; AI analysis describes the current plan separately.
+
+### Reproducible installation
+
+Python 3.13 is the tested runtime. `requirements.txt` pins the five direct
+dependencies; `requirements.lock` constrains their tested transitive versions.
+Keep both files together. No new runtime dependency was added for explanations
+or comparison. Install from the repository root:
+
+```sh
+python3.13 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+On macOS/zsh, enter the key in the same terminal before starting the backend:
+
+```sh
+read -s 'OPENAI_API_KEY?Paste API key (hidden): '; echo
+export OPENAI_API_KEY
+```
+
+Do not put a literal key in a shell command, source code or Git. `.env.example`
+is a template only; this application reads the process environment and does
+not automatically load `.env`. Run the frontend in a second terminal:
+
+```sh
+.venv/bin/python -m http.server 5500 --bind 127.0.0.1 --directory frontend
+```
+
+Open http://127.0.0.1:5500. Both servers must remain running. This address works
+on the local computer; this repository does not provide public hosting.
+
+### Acceptance checklist and demo
+
+- Identical budget/data, exactly five decisions, maximum two per category,
+  no repetitions, district scope and all incompatibilities: engine tests.
+- Lag-adjusted effects, all three synergies, 0–100 clipping, strict below-40
+  penalty, population weights and official formula: numerical regression tests.
+- Invalid input never receives a final Score. Simulation works without AI.
+- Official demo: M7/M8/M10 in Nura, M12 city-wide, M5 in Saryarka. Cost 95,
+  Score 56.54307; Nura S1 becomes 48 and S2 becomes 43.75. Both critical
+  indicators are resolved. M10 + M12 adds its fixed B1 synergy.
+- Comparison demo: M9/M11/M10/M4 in Nura plus M12 city-wide. Cost 61,
+  Score 55.667385; S2 in Nura remains 37.625. Compared with the official demo,
+  it spends less but scores 0.875685 lower. Unspent budget gives no bonus.
+- AI errors, refusals, timeouts, invented evidence and forged input: mocked
+  regression tests. Real API access additionally requires a funded key and
+  model access; mocked tests do not prove live connectivity.
+
+The project is a synthetic policy sandbox, not a decision system validated for
+actual municipal spending. Its useful distinction is deterministic scoring
+with a weakest-district term and transparent, constrained AI explanations.
+Potential extensions include calibrated public datasets, alternative horizons
+and sensitivity analysis. Unexpected events and presentation generation are
+optional task features and are not implemented. Judge-awarded scores cannot
+be inferred from a passing test suite.

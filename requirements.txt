@@ -1,6 +1,8 @@
-fastapi
-uvicorn
-openai
-pydantic>=2
-# Required by FastAPI TestClient for the automated API tests.
-httpx
+# Tested on Python 3.13. Transitive versions are constrained for reproducibility.
+-c requirements.lock
+fastapi==0.141.1
+uvicorn==0.53.0
+openai==3.19.0
+pydantic==2.13.5
+# FastAPI TestClient used by unittest.
+httpx==0.28.1

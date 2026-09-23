@@ -1,6 +1,6 @@
 const API_URL = "http://127.0.0.1:8000/api";
 const $ = (id) => document.getElementById(id);
-const state = { initial: null, selections: [], busy: false };
+const state = { initial: null, selections: [], busy: false, lastResult: null, savedPlan: null };
 let analysisVersion = 0;
 const format = (value) => value.toFixed(2);
 const signed = (value) => `${value > 0 ? "+" : ""}${format(value)}`;
@@ -119,6 +119,7 @@ function addMeasure(id) {
 }
 
 function planChanged() {
+    state.lastResult = null;
     analysisVersion += 1;
     $("results").hidden = true;
     feedback();
@@ -165,6 +166,8 @@ function renderPlan() {
 }
 
 function renderResults(result) {
+    state.lastResult = result;
+    void renderComparison(result);
     $("result-summary").replaceChildren();
     [["Before", result.baseline_score], ["After", result.final_score], ["Delta", result.score_delta]].forEach(([label, value]) => {
         const block = element("div");
@@ -290,3 +293,38 @@ async function loadDashboard() {
 $("simulate").addEventListener("click", simulate);
 $("retry").addEventListener("click", loadDashboard);
 loadDashboard();
+
+$("save-plan").addEventListener("click", () => {
+    if (!state.lastResult) return;
+    state.savedPlan = structuredClone(state.lastResult.selected_measures);
+    $("comparison-results").replaceChildren();
+    $("comparison-status").textContent = "Plan A saved in this tab. Change your decisions and simulate Plan B. Reloading clears the saved plan.";
+});
+
+async function renderComparison(result) {
+    $("comparison-results").replaceChildren();
+    if (!state.savedPlan) return;
+    const saved = state.savedPlan;
+    $("comparison-status").textContent = "Comparing valid plans…";
+    try {
+        const response = await api("/compare", {selections_a: saved, selections_b: result.selected_measures});
+        if (state.lastResult !== result || state.savedPlan !== saved) return;
+        if (!response.valid) throw new Error("Invalid comparison");
+        const c = response.comparison;
+        $("comparison-status").textContent = `Plan A: ${format(c.score_a)} (${c.cost_a} points). Plan B: ${format(c.score_b)} (${c.cost_b} points). Score B − A: ${signed(c.score_difference)}. This compares model outcomes, not real-world forecasts.`;
+        const table = element("table");
+        const header = element("tr");
+        ["District", "Plan A", "Plan B", "B − A"].forEach(label => header.append(element("th", label)));
+        const head = element("thead"); head.append(header); table.append(head);
+        const body = element("tbody");
+        Object.entries(c.districts).forEach(([district, values]) => {
+            const row = element("tr");
+            [district, format(values.a), format(values.b), signed(values.difference)].forEach(value => row.append(element("td", value)));
+            body.append(row);
+        });
+        table.append(body); $("comparison-results").append(table);
+    } catch {
+        if (state.lastResult === result && state.savedPlan === saved)
+            $("comparison-status").textContent = "Comparison unavailable. Restart the updated backend and simulate again.";
+    }
+}
