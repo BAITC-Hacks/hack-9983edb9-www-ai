@@ -10,6 +10,9 @@ def compare_scenarios(selections_a: list, selections_b: list) -> dict:
         'score_a': a['final_score'], 'score_b': b['final_score'],
         'score_difference': b['final_score'] - a['final_score'],
         'cost_a': a['total_cost'], 'cost_b': b['total_cost'],
+        'cost_difference': b['total_cost'] - a['total_cost'],
+        'critical_a': a['critical_indicators_after'],
+        'critical_b': b['critical_indicators_after'],
         'districts': {d: {'a': a['district_scores_after'][d], 'b': b['district_scores_after'][d],
                           'difference': b['district_scores_after'][d] - a['district_scores_after'][d]}
                       for d in a['district_scores_after']},

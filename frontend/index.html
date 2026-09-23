@@ -1,39 +1,44 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QalaAI — Akim for 5 Hours</title>
+    <title>QalaAI — Аким на 5 часов</title>
     <link rel="stylesheet" href="style.css">
     <script src="app.js" defer></script>
 </head>
 <body>
-    <header class="topbar"><a class="brand" href="./">Qala<span>AI</span></a><span>ASTANA · CITY STRATEGY LAB</span><span class="event">HackAlem AI</span></header>
+    <header class="topbar"><a class="brand" href="./">Qala<span>AI</span></a><span>АСТАНА · ЛАБОРАТОРИЯ ГОРОДСКИХ РЕШЕНИЙ</span><span class="event">HackAlem AI</span></header>
     <main>
-        <section class="intro"><p class="eyebrow">YOUR CITY. YOUR DECISIONS.</p><h1>QalaAI — Akim for 5 Hours</h1><p>You have 100 budget points and exactly 5 decisions.<br>Build a better Astana.</p></section>
-        <div id="load-status" role="status">Connecting to the city dashboard…</div>
-        <button id="retry" type="button" hidden>Retry connection</button>
+        <section class="intro"><p class="eyebrow">ВАШ ГОРОД. ВАШИ РЕШЕНИЯ.</p><h1>QalaAI — Аким на 5 часов</h1><p>100 единиц бюджета. Ровно 5 решений.<br>Посмотрите, как ваш план изменит город за два условных года.</p><p class="muted">Учебная модель на условных данных, не прогноз для реальной Астаны.</p></section>
+        <div id="load-status" role="status">Загружаем данные города…</div>
+        <button id="retry" type="button" hidden>Повторить подключение</button>
         <div id="dashboard" hidden>
-            <section class="metrics" aria-label="Plan overview">
-                <article class="metric primary"><p>Astana Quality of Life Score</p><strong id="baseline-score">—</strong><small>Initial city baseline</small></article>
-                <article class="metric"><p>Budget remaining</p><strong id="budget-remaining">—</strong><small>Budget points</small></article>
-                <article class="metric"><p>Decisions</p><strong id="decision-count">—</strong><small>Build your five-part plan</small></article>
+            <section class="demo-tools" aria-label="Готовые примеры">
+                <div><h2>Начните с примера</h2><p>Кнопки заменяют текущие решения. Для результата нажмите «Рассчитать».</p></div>
+                <div class="demo-buttons"><button id="demo-official" type="button">Загрузить пример из задания · 95</button><button id="demo-cheap" type="button">Загрузить экономный план · 61</button></div>
+                <p id="demo-status" role="status"></p>
             </section>
-            <section aria-labelledby="district-heading"><div class="section-heading"><h2 id="district-heading">Five districts. One Astana.</h2><span>Initial quality of life</span></div><div id="districts" class="district-grid"></div></section>
+            <section class="metrics" aria-label="Обзор плана">
+                <article class="metric primary"><p>Astana Quality of Life Score</p><strong id="baseline-score">—</strong><small>Начальный балл качества жизни</small></article>
+                <article class="metric"><p>Остаток бюджета</p><strong id="budget-remaining">—</strong><small>Условных единиц</small></article>
+                <article class="metric"><p>Решений</p><strong id="decision-count">—</strong><small>Нужно выбрать ровно пять</small></article>
+            </section>
+            <section aria-labelledby="district-heading"><div class="section-heading"><h2 id="district-heading">Пять районов. Одна Астана.</h2><span>Начальное качество жизни</span></div><div id="districts" class="district-grid"></div></section>
             <div class="workspace">
-                <section aria-labelledby="measures-heading"><div class="section-heading"><h2 id="measures-heading">Choose your investments</h2><span>14 measures · 5 priorities</span></div><p class="muted">Choose a district, then add a measure. The city validates your full plan before simulation.</p><div id="measures"></div></section>
-                <aside class="plan" aria-labelledby="plan-heading"><p class="eyebrow">DECISION ROOM</p><h2 id="plan-heading">Your Plan</h2><p class="muted">Invest where it matters most.</p><div id="plan-list"></div><dl class="plan-totals"><div><dt>Decisions</dt><dd id="plan-decisions"></dd></div><div><dt>Budget used</dt><dd id="plan-used"></dd></div><div><dt>Budget remaining</dt><dd id="plan-remaining"></dd></div></dl><div id="feedback" role="alert" hidden></div><button id="simulate" class="simulate" type="button" disabled>SIMULATE 2 YEARS</button><p id="simulate-hint" class="hint">Select exactly 5 decisions to simulate.</p></aside>
+                <section aria-labelledby="measures-heading"><div class="section-heading"><h2 id="measures-heading">Выберите мероприятия</h2><span>14 мероприятий · 5 направлений</span></div><p class="muted">Не более двух мер одного направления. Под каждой кнопкой объясняется, что мешает добавить меру. Итоговый план повторно проверяет сервер.</p><div id="measures"></div></section>
+                <aside class="plan" aria-labelledby="plan-heading"><p class="eyebrow">КАБИНЕТ АКИМА</p><h2 id="plan-heading">Ваш план</h2><p class="muted">Распределите бюджет между потребностями районов.</p><div id="plan-list"></div><dl class="plan-totals"><div><dt>Решений</dt><dd id="plan-decisions"></dd></div><div><dt>Потрачено</dt><dd id="plan-used"></dd></div><div><dt>Осталось</dt><dd id="plan-remaining"></dd></div></dl><div id="feedback" role="alert" hidden></div><button id="simulate" class="simulate" type="button" disabled>РАССЧИТАТЬ · 2 ГОДА</button><p id="simulate-hint" class="hint">Выберите ровно 5 решений.</p></aside>
             </div>
-            <section id="results" class="results" aria-labelledby="results-heading" hidden tabindex="-1"><p class="eyebrow">YOUR CITY AFTER 2 YEARS</p><h2 id="results-heading">ASTANA QUALITY OF LIFE SCORE</h2><div id="result-summary" class="result-summary"></div><p id="result-budget"></p><h3>District performance</h3><div class="table-wrap"><table><thead><tr><th>District</th><th>Before</th><th>After</th><th>Change</th></tr></thead><tbody id="district-results"></tbody></table></div><div class="result-details"><section><h3>Critical indicators</h3><p class="muted">District indicators strictly below 40.</p><div id="critical-results"></div></section><section><h3>Applied synergies</h3><div id="synergy-results"></div></section></div>
-                <section aria-labelledby="compare-heading"><h3 id="compare-heading">Compare plans</h3><button id="save-plan" type="button">Save this result as Plan A</button><p id="comparison-status" role="status">Save a result, change your decisions, and simulate Plan B.</p><div id="comparison-results" class="table-wrap"></div></section>
-                <section id="ai-analysis" class="ai-analysis" aria-labelledby="ai-heading" aria-busy="false">
-                    <h2 id="ai-heading">AI STRATEGY ANALYSIS</h2>
-                    <p id="ai-status" class="muted" role="status">AI is analyzing your strategy...</p>
-                    <div id="ai-content" class="ai-content"></div>
-                </section>
+            <section id="results" class="results" aria-labelledby="results-heading" hidden tabindex="-1">
+                <p class="eyebrow">ГОРОД ЧЕРЕЗ ДВА УСЛОВНЫХ ГОДА</p><h2 id="results-heading">ИТОГОВЫЙ БАЛЛ КАЧЕСТВА ЖИЗНИ</h2><div id="result-summary" class="result-summary"></div><p id="result-budget"></p>
+                <h3>Результаты районов</h3><div class="table-wrap"><table><thead><tr><th>Район</th><th>Было</th><th>Стало</th><th>Изменение</th></tr></thead><tbody id="district-results"></tbody></table></div>
+                <section class="indicator-section" aria-labelledby="indicator-heading"><h3 id="indicator-heading">Что изменилось в районе</h3><label for="chart-district">Выберите район</label><select id="chart-district"></select><p class="muted">Шкала 0–100: больше — лучше. Серый — было, зелёный — стало. Пунктир — порог 40; значения ниже него дают штраф.</p><div id="indicator-chart" aria-live="polite"></div></section>
+                <div class="result-details"><section><h3>Критические показатели</h3><p class="muted">Значения строго ниже 40.</p><div id="critical-results"></div></section><section><h3>Совместные бонусы мер</h3><div id="synergy-results"></div></section></div>
+                <section class="comparison" aria-labelledby="compare-heading"><h3 id="compare-heading">Сравнение планов</h3><button id="save-plan" type="button">Сохранить результат как план А</button><p id="comparison-status" role="status">Сохраните план А, измените решения и рассчитайте план Б.</p><div id="comparison-insights"></div><details id="comparison-plans" hidden><summary>Какие решения сравниваются</summary><div id="comparison-selections"></div></details><div id="comparison-results" class="table-wrap"></div></section>
+                <section id="ai-analysis" class="ai-analysis" aria-labelledby="ai-heading" aria-busy="false"><h2 id="ai-heading">AI-АНАЛИЗ ПЛАНА</h2><p id="ai-status" class="muted" role="status">AI анализирует ваш план…</p><div id="ai-content" class="ai-content"></div></section>
             </section>
         </div>
     </main>
-    <footer>QalaAI · A better Astana starts with a considered decision.</footer>
+    <footer>QalaAI · Продуманные решения для города.</footer>
 </body>
 </html>

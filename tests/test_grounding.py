@@ -29,8 +29,8 @@ class GroundingTests(TestCase):
         catalog = evidence_catalog(simulate_scenario(REFERENCE))
         self.assertEqual(set(catalog['consequences']),
                          {'resolved_Nura_S1', 'resolved_Nura_S2', 'critical_count'})
-        self.assertIn('38 to 48', catalog['consequences']['resolved_Nura_S1'])
-        self.assertIn('35 to 43.75', catalog['consequences']['resolved_Nura_S2'])
+        self.assertIn('38 → 48', catalog['consequences']['resolved_Nura_S1'])
+        self.assertIn('35 → 43.75', catalog['consequences']['resolved_Nura_S2'])
         self.assertIn('52.55768 → 56.54307', catalog['summary']['score'])
         self.assertIn('3.78250', catalog['strengths']['gain_Nura'])
         self.assertNotIn('critical_Nura_B1', catalog['risks'])
@@ -100,3 +100,40 @@ class ComparisonTests(TestCase):
             self.assertFalse(result['valid'])
             self.assertIsNone(result['comparison'])
             self.assertTrue(result['errors']['a'] or result['errors']['b'])
+
+
+class RussianDashboardTests(TestCase):
+    def setUp(self):
+        self.client = self.enterContext(TestClient(app))
+
+    def test_labels_and_rules_cover_engine_catalog(self):
+        from backend.data import DISTRICTS, MEASURES, INDICATOR_METADATA, INCOMPATIBILITIES
+        initial = self.client.get('/api/initial-state').json()
+        labels = initial['ui_labels']
+        self.assertEqual(set(labels['districts']), set(DISTRICTS))
+        self.assertEqual(set(labels['measures']), set(MEASURES))
+        self.assertEqual(set(labels['indicators']), set(INDICATOR_METADATA))
+        self.assertEqual(set(labels['categories']), {m['category'] for m in MEASURES.values()})
+        self.assertEqual(initial['rules'], {'max_per_category': 2, 'incompatibilities': INCOMPATIBILITIES})
+        self.assertEqual(labels['districts']['Nura'], 'Нура')
+
+    def test_comparison_explains_lower_score_despite_higher_nura_score(self):
+        from backend.comparison import compare_scenarios
+        c = compare_scenarios(REFERENCE, CHEAP)['comparison']
+        self.assertEqual(c['cost_difference'], -34)
+        self.assertLess(c['score_difference'], 0)
+        self.assertAlmostEqual(c['districts']['Nura']['difference'], 0.71375)
+        self.assertEqual(c['critical_a'], [])
+        self.assertEqual(c['critical_b'], [{'district': 'Nura', 'indicator': 'S2', 'value': 37.625}])
+        reverse = compare_scenarios(CHEAP, REFERENCE)['comparison']
+        self.assertEqual(reverse['cost_difference'], 34)
+        self.assertEqual(reverse['critical_b'], [])
+        self.assertEqual(reverse['critical_a'], c['critical_b'])
+
+    def test_localized_evidence_retains_fact_ids_and_numbers(self):
+        catalog = evidence_catalog(simulate_scenario(REFERENCE))
+        output = render_selection(PICKS, catalog)
+        self.assertIn('Нура', output['strengths'][0])
+        self.assertIn('38 → 48', output['consequences'][0])
+        self.assertIn('Школы и детсады', output['consequences'][0])
+        self.assertIn('56.54307', output['summary'])
