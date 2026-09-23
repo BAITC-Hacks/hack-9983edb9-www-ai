@@ -8,6 +8,25 @@
     <script src="app.js" defer></script>
 </head>
 <body>
-    <h1>QalaAI — Akim for 5 Hours</h1>
+    <header class="topbar"><a class="brand" href="./">Qala<span>AI</span></a><span>ASTANA · CITY STRATEGY LAB</span><span class="event">HackAlem AI</span></header>
+    <main>
+        <section class="intro"><p class="eyebrow">YOUR CITY. YOUR DECISIONS.</p><h1>QalaAI — Akim for 5 Hours</h1><p>You have 100 budget points and exactly 5 decisions.<br>Build a better Astana.</p></section>
+        <div id="load-status" role="status">Connecting to the city dashboard…</div>
+        <button id="retry" type="button" hidden>Retry connection</button>
+        <div id="dashboard" hidden>
+            <section class="metrics" aria-label="Plan overview">
+                <article class="metric primary"><p>Astana Quality of Life Score</p><strong id="baseline-score">—</strong><small>Initial city baseline</small></article>
+                <article class="metric"><p>Budget remaining</p><strong id="budget-remaining">—</strong><small>Budget points</small></article>
+                <article class="metric"><p>Decisions</p><strong id="decision-count">—</strong><small>Build your five-part plan</small></article>
+            </section>
+            <section aria-labelledby="district-heading"><div class="section-heading"><h2 id="district-heading">Five districts. One Astana.</h2><span>Initial quality of life</span></div><div id="districts" class="district-grid"></div></section>
+            <div class="workspace">
+                <section aria-labelledby="measures-heading"><div class="section-heading"><h2 id="measures-heading">Choose your investments</h2><span>14 measures · 5 priorities</span></div><p class="muted">Choose a district, then add a measure. The city validates your full plan before simulation.</p><div id="measures"></div></section>
+                <aside class="plan" aria-labelledby="plan-heading"><p class="eyebrow">DECISION ROOM</p><h2 id="plan-heading">Your Plan</h2><p class="muted">Invest where it matters most.</p><div id="plan-list"></div><dl class="plan-totals"><div><dt>Decisions</dt><dd id="plan-decisions"></dd></div><div><dt>Budget used</dt><dd id="plan-used"></dd></div><div><dt>Budget remaining</dt><dd id="plan-remaining"></dd></div></dl><div id="feedback" role="alert" hidden></div><button id="simulate" class="simulate" type="button" disabled>SIMULATE 2 YEARS</button><p id="simulate-hint" class="hint">Select exactly 5 decisions to simulate.</p></aside>
+            </div>
+            <section id="results" class="results" aria-labelledby="results-heading" hidden tabindex="-1"><p class="eyebrow">YOUR CITY AFTER 2 YEARS</p><h2 id="results-heading">ASTANA QUALITY OF LIFE SCORE</h2><div id="result-summary" class="result-summary"></div><p id="result-budget"></p><h3>District performance</h3><div class="table-wrap"><table><thead><tr><th>District</th><th>Before</th><th>After</th><th>Change</th></tr></thead><tbody id="district-results"></tbody></table></div><div class="result-details"><section><h3>Critical indicators</h3><p class="muted">District indicators strictly below 40.</p><div id="critical-results"></div></section><section><h3>Applied synergies</h3><div id="synergy-results"></div></section></div></section>
+        </div>
+    </main>
+    <footer>QalaAI · A better Astana starts with a considered decision.</footer>
 </body>
 </html>
