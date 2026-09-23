@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .ai_service import analyze_simulation
+from .comparison import compare_scenarios
 from .data import BUDGET, DISTRICTS, INDICATOR_METADATA, MEASURES, REQUIRED_DECISIONS
 from .simulation import calculate_baseline, simulate_scenario
 
@@ -51,7 +52,7 @@ def simulate(scenario: ScenarioRequest) -> dict:
 
 @app.post("/api/analyze")
 def analyze(request: AnalysisRequest) -> dict:
-    # Explanation is independent of simulation; never recalculate its result.
+    # Verify submitted results against the engine before selecting AI explanations.
     try:
         return analyze_simulation(request.simulation_result)
     except Exception:
@@ -60,3 +61,13 @@ def analyze(request: AnalysisRequest) -> dict:
             "code": "analysis_unavailable",
             "message": "AI analysis is temporarily unavailable.",
         }}
+
+
+class ComparisonRequest(BaseModel):
+    selections_a: list[dict]
+    selections_b: list[dict]
+
+
+@app.post("/api/compare")
+def compare(request: ComparisonRequest) -> dict:
+    return compare_scenarios(request.selections_a, request.selections_b)
