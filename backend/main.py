@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from .ai_service import analyze_simulation
 from .data import BUDGET, DISTRICTS, INDICATOR_METADATA, MEASURES, REQUIRED_DECISIONS
 from .simulation import calculate_baseline, simulate_scenario
 
@@ -19,6 +20,10 @@ app.add_middleware(
 
 class ScenarioRequest(BaseModel):
     selections: list[dict]
+
+
+class AnalysisRequest(BaseModel):
+    simulation_result: dict
 
 
 @app.get("/api/health")
@@ -42,3 +47,16 @@ def initial_state() -> dict:
 def simulate(scenario: ScenarioRequest) -> dict:
     # Scenario validation and every numerical calculation belong to the engine.
     return simulate_scenario(scenario.selections)
+
+
+@app.post("/api/analyze")
+def analyze(request: AnalysisRequest) -> dict:
+    # Explanation is independent of simulation; never recalculate its result.
+    try:
+        return analyze_simulation(request.simulation_result)
+    except Exception:
+        # Keep unexpected service failures controlled without exposing details.
+        return {"error": {
+            "code": "analysis_unavailable",
+            "message": "AI analysis is temporarily unavailable.",
+        }}
