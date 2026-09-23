@@ -131,6 +131,9 @@ class APITests(unittest.TestCase):
         self.assertEqual(payload["simulation_result"], {
             key: original[key] for key in ai_service.RESULT_FIELDS
         })
+        self.assertAlmostEqual(payload["simulation_result"]["district_score_deltas"]["Nura"], 3.7825)
+        self.assertEqual(payload["simulation_result"]["indicator_deltas"]["Nura"]["S1"], 10)
+        self.assertEqual(len(payload["simulation_result"]["measure_contributions"]), 5)
         self.assertNotIn(TEST_KEY, json.dumps(payload))
         self.assertIs(arguments["text_format"], ai_service.PolicyAnalysis)
         self.assertFalse(arguments["store"])
